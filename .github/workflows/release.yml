@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Binary
+        run: |
+          chmod +x bin/paragravity
+          bin/paragravity --version
+
+      - name: Create Release Tarball
+        run: |
+          TARBALL="paragravity-${{ github.ref_name }}.tar.gz"
+          tar -czvf "$TARBALL" bin/ completions/ install.sh LICENSE README.md
+          echo "SHA256=$(shasum -a 256 "$TARBALL" | awk '{print $1}')" >> $GITHUB_ENV
+          echo "TARBALL=$TARBALL" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.TARBALL }}
+          generate_release_notes: true
+          body: |
+            ### 🌌 ParaGravity ${{ github.ref_name }}
+            
+            #### Checksums
+            | File | SHA-256 |
+            | :--- | :--- |
+            | `${{ env.TARBALL }}` | `${{ env.SHA256 }}` |
+            
+            #### Installation
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```

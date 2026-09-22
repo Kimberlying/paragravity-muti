@@ -1,0 +1,50 @@
+#compdef paragravity pgrav
+
+_paragravity_profiles() {
+    local profiles_dir="${PARAGRAVITY_PROFILES_DIR:-${HOME}/.antigravity-profiles}"
+    if [[ -d "$profiles_dir" ]]; then
+        local -a profiles
+        profiles=($(find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null))
+        _describe 'profiles' profiles
+    fi
+}
+
+_paragravity() {
+    local -a commands
+    commands=(
+        'create:Create a new isolated Antigravity profile'
+        'list:List all profiles, status, and Google accounts'
+        'ls:Alias for list'
+        'launch:Launch Antigravity for a profile'
+        'start:Alias for launch'
+        'stop:Stop running instance of profile'
+        'delete:Delete a profile and its shortcuts'
+        'rm:Alias for delete'
+        'info:Show detailed profile info'
+        'path:Print profile directory path'
+    )
+
+    _arguments -C \
+        '(-v --version)'{-v,--version}'[Show version]' \
+        '(-h --help)'{-h,--help}'[Show help]' \
+        '1: :->command' \
+        '*: :->args'
+
+    case $state in
+        command)
+            _describe 'paragravity commands' commands
+            ;;
+        args)
+            case $words[1] in
+                launch|start|stop|delete|rm|info|path)
+                    _paragravity_profiles
+                    ;;
+                create)
+                    _message 'profile name'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_paragravity "$@"
