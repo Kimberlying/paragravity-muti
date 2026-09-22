@@ -3,6 +3,8 @@
 > **Native, non-invasive parallel multi-account & sandbox manager for Google Antigravity.**  
 > Run multiple Google Gemini Pro accounts side-by-side in independent, isolated windows on macOS.
 
+English | [简体中文](README_zh.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)]()
 [![Python: 3.8+](https://img.shields.io/badge/Python-3.8+-yellow.svg)]()
