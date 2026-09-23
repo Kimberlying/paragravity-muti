@@ -264,6 +264,71 @@ class ProcessManagementTests(unittest.TestCase):
             finally:
                 run_cli(["stop", "grp"], env)
 
+    @unittest.skipUnless(IS_DARWIN, "multi-instance process groups verified on macOS")
+    def test_multi_instance_concurrency_and_isolation(self):
+        with sandbox_home() as (home, env):
+            profiles = Path(env["PARAGRAVITY_PROFILES_DIR"])
+            fake1 = home / "fake-antigravity-1"
+            child_pid_1 = home / "child1.pid"
+            self._make_fake_app(fake1, child_pid_1)
+
+            fake2 = home / "fake-antigravity-2"
+            child_pid_2 = home / "child2.pid"
+            self._make_fake_app(fake2, child_pid_2)
+
+            self.assertEqual(run_cli(["create", "prof1"], env).returncode, 0)
+            self.assertEqual(run_cli(["create", "prof2"], env).returncode, 0)
+
+            # Launch both instances
+            l1 = run_cli(["launch", "prof1", "--app", str(fake1)], env)
+            self.assertEqual(l1.returncode, 0, l1.stderr)
+            l2 = run_cli(["launch", "prof2", "--app", str(fake2)], env)
+            self.assertEqual(l2.returncode, 0, l2.stderr)
+
+            self.assertTrue(wait_until(child_pid_1.is_file))
+            self.assertTrue(wait_until(child_pid_2.is_file))
+
+            p1_main = int((profiles / "prof1" / "run.pid").read_text())
+            p1_child = int(child_pid_1.read_text())
+            p2_main = int((profiles / "prof2" / "run.pid").read_text())
+            p2_child = int(child_pid_2.read_text())
+
+            self.assertNotEqual(p1_main, p2_main)
+            self.assertTrue(pid_alive(p1_main))
+            self.assertTrue(pid_alive(p1_child))
+            self.assertTrue(pid_alive(p2_main))
+            self.assertTrue(pid_alive(p2_child))
+
+            # list --json should report both running
+            listed = run_cli(["list", "--json"], env)
+            self.assertEqual(listed.returncode, 0)
+            data = json.loads(listed.stdout)
+            running_map = {item["name"]: item["running"] for item in data}
+            self.assertTrue(running_map.get("prof1"))
+            self.assertTrue(running_map.get("prof2"))
+
+            # Duplicate launch of prof1 should detect it is already running
+            dup = run_cli(["launch", "prof1", "--app", str(fake1)], env)
+            self.assertEqual(dup.returncode, 0)
+            self.assertIn("already running", dup.stdout)
+            self.assertEqual(int((profiles / "prof1" / "run.pid").read_text()), p1_main)
+
+            # Stopping prof1 must NOT terminate prof2 or prof2's children
+            s1 = run_cli(["stop", "prof1"], env)
+            self.assertEqual(s1.returncode, 0, s1.stderr)
+            self.assertTrue(wait_until(lambda: not pid_alive(p1_main)))
+            self.assertTrue(wait_until(lambda: not pid_alive(p1_child)))
+
+            # prof2 must still be fully alive
+            self.assertTrue(pid_alive(p2_main), "prof2 must remain alive after stopping prof1")
+            self.assertTrue(pid_alive(p2_child), "prof2 child must remain alive after stopping prof1")
+
+            # Clean stop for prof2
+            s2 = run_cli(["stop", "prof2"], env)
+            self.assertEqual(s2.returncode, 0, s2.stderr)
+            self.assertTrue(wait_until(lambda: not pid_alive(p2_main)))
+            self.assertTrue(wait_until(lambda: not pid_alive(p2_child)))
+
 
 class NewFeatureTests(unittest.TestCase):
     """Logs, workspace path, --json, --links and token-expiry features."""
