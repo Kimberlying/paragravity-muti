@@ -99,6 +99,14 @@ pgrav info zwe
 pgrav delete zwe
 ```
 
+### 7. 现代化 Web 可视化控制台 (多实例矩阵)
+```bash
+pgrav web
+# 或指定端口启动：
+paragravity web -p 3888
+```
+*启动灵动纯净白（Island White）现代化交互面板，支持自适应多列/四宫格分屏、多账号多色辉光识别、一键批量并行启动以及 macOS 屏幕智能平铺！*
+
 ---
 
 ## 🏗️ 底层架构原理

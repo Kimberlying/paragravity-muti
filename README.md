@@ -96,6 +96,14 @@ pgrav info zwe
 pgrav delete zwe
 ```
 
+### 7. Modern Web Console (Multi-Instance Matrix)
+```bash
+pgrav web
+# or specify port / options:
+paragravity web -p 3888
+```
+*Open interactive visual dashboard to manage, monitor, batch parallel launch, and automatically tile multiple Antigravity windows on macOS!*
+
 ---
 
 ## 🏗️ Technical Architecture

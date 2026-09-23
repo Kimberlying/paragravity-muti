@@ -304,10 +304,46 @@ def cmd_list(args):
     """List all profiles, their status, and bound accounts."""
     profiles_dir = get_profiles_dir()
     if not profiles_dir.exists():
+        if getattr(args, "json", False):
+            print("[]")
+            return
         print(f"{COLOR_YELLOW}No profiles found. Create one with: paragravity create <name>{COLOR_RESET}")
         return
 
     profiles = sorted([p for p in profiles_dir.iterdir() if p.is_dir() and (p / "profile.json").exists()])
+    if getattr(args, "json", False):
+        result = []
+        for p in profiles:
+            name = p.name
+            data_dir = p / "data"
+            pid = get_profile_process(p, data_dir)
+            acc_info = extract_account_info(p)
+            size_str = get_directory_size(p)
+            desc = ""
+            created_at = None
+            meta_file = p / "profile.json"
+            if meta_file.is_file():
+                try:
+                    meta = json.loads(meta_file.read_text())
+                    desc = meta.get("description", "")
+                    created_at = meta.get("created_at")
+                except Exception:
+                    pass
+            result.append({
+                "name": name,
+                "status": "running" if pid else "stopped",
+                "pid": pid,
+                "email": acc_info["email"],
+                "has_token": acc_info["has_token"],
+                "token_exp": acc_info["token_exp"],
+                "size": size_str,
+                "description": desc,
+                "created_at": created_at,
+                "path": str(p.resolve())
+            })
+        print(json.dumps(result))
+        return
+
     if not profiles:
         print(f"{COLOR_YELLOW}No profiles found in {profiles_dir}.{COLOR_RESET}")
         print(f"Run: {COLOR_CYAN}paragravity create <name>{COLOR_RESET} to create your first profile.")
@@ -531,6 +567,14 @@ def cmd_path(args):
         print(f"{COLOR_RED}Error: Profile '{name}' does not exist.{COLOR_RESET}", file=sys.stderr)
         sys.exit(1)
 
+def cmd_web(args):
+    """Start the ParaGravity Web Console."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from web_server import start_server
+    port = getattr(args, "port", 3888)
+    no_browser = getattr(args, "no_browser", False)
+    start_server(port=port, open_browser=not no_browser)
+
 def main():
     parser = argparse.ArgumentParser(
         prog="paragravity",
@@ -549,6 +593,7 @@ def main():
 
     # list / ls
     p_list = subparsers.add_parser("list", aliases=["ls"], help="List all profiles and status")
+    p_list.add_argument("--json", action="store_true", help="Output in JSON format")
     p_list.set_defaults(func=cmd_list)
 
     # launch / start
@@ -579,6 +624,12 @@ def main():
     p_path = subparsers.add_parser("path", help="Print profile directory path")
     p_path.add_argument("name", help="Profile name")
     p_path.set_defaults(func=cmd_path)
+
+    # web / ui
+    p_web = subparsers.add_parser("web", aliases=["ui"], help="Launch modern Web Console")
+    p_web.add_argument("-p", "--port", type=int, default=3888, help="Port to listen on (default: 3888)")
+    p_web.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
+    p_web.set_defaults(func=cmd_web)
 
     if len(sys.argv) == 1:
         cmd_list(None)
