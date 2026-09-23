@@ -806,7 +806,11 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    args = parser.parse_args()
+    args, extra = parser.parse_known_args()
+    if extra and getattr(args, "path", None) is None and not extra[0].startswith("-"):
+        args.path = extra.pop(0)
+    if extra:
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
     if hasattr(args, "func"):
         args.func(args)
     else:
